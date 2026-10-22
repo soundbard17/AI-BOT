@@ -43,7 +43,7 @@ if prompt := st.chat_input("Kuch bhi poocho ya 'image: [prompt]' likho..."):
             with st.spinner("Thinking..."):
                 chat_context = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages if m["type"] == "text"]
                 completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-8b-instant",
                     messages=chat_context
                 )
                 reply = completion.choices[0].message.content
