@@ -1,35 +1,68 @@
 import streamlit as st
 from groq import Groq
-import urllib.parse
-import random
+import requests
+import time
+import io
+import base64
+from PIL import Image
 import re
 
 st.set_page_config(page_title="Mera Super AI", page_icon="🤖", layout="wide")
 st.title("🤖 Mera Personal AI Assistant")
-st.caption("Accurate Image Generation (No Watermark, Exact Prompt) + Fast Reasoning")
+st.caption("100% Free & Unlimited (Zero Watermark, Exact Prompt Match) + Fast Reasoning")
 
 # Secrets check
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY missing in Secrets!")
+    st.error("GROQ_API_KEY Streamlit Secrets me missing hai!")
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# 🌟 ACCURATE IMAGE GENERATOR (EXACT PROMPT MATCH, NO WATERMARK)
-def generate_exact_image(user_query):
-    # Sirf clean user prompt extract karna bina kisi extra character ke
-    clean_text = user_query.strip()
+# 🌟 100% FREE & UNLIMITED CLUSTER (NO WATERMARK, SDXL ENGINE)
+def generate_unlimited_image(prompt_text):
+    # Public Anonymous Free Cluster Key (Unlimited)
+    HORDE_API_KEY = "0000000000"
     
-    # URL encode karna taaki browser exact prompt bheje
-    encoded_prompt = urllib.parse.quote(clean_text)
-    seed = random.randint(1000, 999999)
+    submit_url = "https://aihorde.net/api/v2/generate/async"
+    headers = {
+        "apikey": HORDE_API_KEY,
+        "Client-Agent": "MeraAIAssistant:1.0:free"
+    }
     
-    # Direct Turbo Engine with STRICT prompt adherence (No Logo, No Portrait Bias)
-    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&seed={seed}&model=turbo&nologo=true"
-    return image_url
+    payload = {
+        "prompt": f"{prompt_text} ### bad quality, blurry, watermark, signature, ugly, lowres",
+        "params": {
+            "sampler_name": "k_euler",
+            "cfg_scale": 7.5,
+            "height": 512,
+            "width": 512,
+            "steps": 20
+        },
+        "models": ["ICBINP - I Can't Believe It's Not Photography", "Stable Diffusion"]
+    }
+    
+    # 1. Job submit karein
+    res = requests.post(submit_url, json=payload, headers=headers, timeout=20)
+    if res.status_code != 202:
+        raise Exception(f"Queue error: {res.text}")
+    
+    job_id = res.json().get("id")
+    check_url = f"https://aihorde.net/api/v2/generate/status/{job_id}"
+    
+    # 2. Render hone ka wait karein (5-15 seconds)
+    for _ in range(30):
+        time.sleep(2)
+        status_res = requests.get(check_url, headers=headers).json()
+        if status_res.get("done"):
+            img_data = status_res["generations"][0]["img"]
+            # Base64 string decode to Image
+            img_bytes = base64.b64decode(img_data)
+            return Image.open(io.BytesIO(img_bytes))
+            
+    raise Exception("Image rendering timeout. Cluster busy, please try again.")
 
-# Chat memory
+# Chat history setup
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -45,8 +78,6 @@ if prompt := st.chat_input("Poocho ya 'create an image of [something]' likho..."
     st.chat_message("user").write(prompt)
 
     lower_p = prompt.lower()
-    
-    # Clean image intent trigger
     image_patterns = [
         r"^image:\s*",
         r"^create an image of\s*",
@@ -64,27 +95,30 @@ if prompt := st.chat_input("Poocho ya 'create an image of [something]' likho..."
     
     is_image = any(re.search(pat, lower_p) for pat in image_patterns) or lower_p.startswith("image:")
 
-    # 1. IMAGE FLOW
+    # 1. IMAGE GENERATION
     if is_image:
         target_prompt = prompt
         for pat in image_patterns:
             target_prompt = re.sub(pat, "", target_prompt, flags=re.IGNORECASE).strip()
             
         if not target_prompt:
-            target_prompt = prompt  # agar prompt match clean karne ke baad empty ho toh original use karein
+            target_prompt = prompt
 
         with st.chat_message("assistant"):
-            with st.spinner(f"🎨 '{target_prompt}' ki exact image ban rahi hai..."):
-                img_url = generate_exact_image(target_prompt)
-                st.image(img_url, caption=f"Result: {target_prompt}")
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "type": "image",
-                    "content": img_url,
-                    "caption": f"Result: {target_prompt}"
-                })
+            with st.spinner(f"🎨 '{target_prompt}' bina watermark ke render ho raha hai (Zero Cost)..."):
+                try:
+                    img = generate_unlimited_image(target_prompt)
+                    st.image(img, caption=f"Result: {target_prompt}")
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "type": "image",
+                        "content": img,
+                        "caption": f"Result: {target_prompt}"
+                    })
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-    # 2. TEXT FLOW (Chat / Coding)
+    # 2. TEXT / REASONING / CODING
     else:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
