@@ -1,34 +1,53 @@
 import streamlit as st
 from groq import Groq
-import urllib.parse
-import random
+import requests
+import io
+from PIL import Image
 
 st.set_page_config(page_title="Mera Super AI", page_icon="🤖", layout="wide")
 st.title("🤖 Mera Personal AI Assistant")
-st.caption("Ultra-HD Image Engine (FLUX) + Claude-level Reasoning")
+st.caption("Official FLUX.1 Engine (No Watermark, Ultra-HD) + Claude-level Reasoning")
 
 # Secrets check
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY missing in Secrets!")
+HF_TOKEN = st.secrets.get("HF_TOKEN")
+
+if not GROQ_API_KEY or not HF_TOKEN:
+    st.error("GROQ_API_KEY ya HF_TOKEN Streamlit Secrets me missing hai!")
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# 🌟 ULTRA-HD IMAGE GENERATOR (FLUX Engine + Auto-Enhance)
-def get_high_res_image_url(prompt):
-    # Professional photography & rendering boosters
-    enhancers = "ultra-realistic, 8k resolution, shot on 35mm lens, f/1.8, cinematic studio lighting, highly detailed textures, photorealistic masterpiece, sharp focus"
-    full_prompt = f"{prompt}, {enhancers}"
-    encoded = urllib.parse.quote(full_prompt)
-    seed = random.randint(1000, 999999)
-    # FLUX.1 Pro quality pipeline with enhance=true
-    return f"https://image.pollinations.ai/prompt/{encoded}?width=1280&height=1280&seed={seed}&model=flux-realism&nologo=true&enhance=true"
+# 🌟 DIRECT FLUX.1 ENGINE (NO WATERMARK, HIGH QUALITY)
+def generate_flux_image(prompt):
+    # Black Forest Labs official FLUX.1-schnell via Hugging Face router
+    API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    # Prompt enhancement for photorealism
+    enhanced_prompt = f"{prompt}, 8k, photorealistic, cinematic lighting, sharp focus, masterpiece, highly detailed"
+    payload = {
+        "inputs": enhanced_prompt,
+        "parameters": {"num_inference_steps": 4}
+    }
+    
+    response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+    
+    if response.status_code == 200:
+        return Image.open(io.BytesIO(response.content))
+    else:
+        # Fallback to SDXL agar router busy ho
+        FALLBACK_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
+        fb_res = requests.post(FALLBACK_URL, headers=headers, json={"inputs": enhanced_prompt}, timeout=60)
+        if fb_res.status_code == 200:
+            return Image.open(io.BytesIO(fb_res.content))
+        raise Exception(f"API Error ({response.status_code}): {response.text}")
 
-# Chat history
+# Chat history setup
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Purane messages render karein
 for msg in st.session_state.messages:
     if msg["type"] == "text":
         st.chat_message(msg["role"]).write(msg["content"])
@@ -44,24 +63,27 @@ if prompt := st.chat_input("Poocho ya 'create an image of [something]' likho..."
     image_keywords = ["image:", "create image", "create an image", "generate image", "generate an image", "draw", "picture of"]
     is_image = any(k in lower_p for k in image_keywords)
 
-    # IMAGE GENERATION
+    # 1. IMAGE GENERATION
     if is_image:
         clean_prompt = prompt
         for k in ["image:", "create an image of", "create image of", "create image", "generate an image of", "generate image of", "generate image", "draw a picture of", "draw", "picture of"]:
             clean_prompt = clean_prompt.lower().replace(k, "").strip()
 
         with st.chat_message("assistant"):
-            with st.spinner("🎨 Ultra-HD Photorealistic Image render ho rahi hai..."):
-                img_url = get_high_res_image_url(clean_prompt)
-                st.image(img_url, caption=f"✨ 8K Render: {clean_prompt}")
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "type": "image",
-                    "content": img_url,
-                    "caption": f"✨ 8K Render: {clean_prompt}"
-                })
+            with st.spinner("🎨 FLUX.1 Engine se High-Res Image ban rahi hai (Zero Watermark)..."):
+                try:
+                    img = generate_flux_image(clean_prompt)
+                    st.image(img, caption=f"✨ FLUX HD: {clean_prompt}")
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "type": "image",
+                        "content": img,
+                        "caption": f"✨ FLUX HD: {clean_prompt}"
+                    })
+                except Exception as e:
+                    st.error(f"Image generation me error aaya: {e}")
 
-    # TEXT / REASONING / CODING
+    # 2. TEXT / REASONING / CODING
     else:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
