@@ -1,53 +1,37 @@
 import streamlit as st
 from groq import Groq
-import requests
-import io
-from PIL import Image
+import urllib.parse
+import random
 
 st.set_page_config(page_title="Mera Super AI", page_icon="🤖", layout="wide")
 st.title("🤖 Mera Personal AI Assistant")
-st.caption("Official FLUX.1 Engine (No Watermark, Ultra-HD) + Claude-level Reasoning")
+st.caption("Clean HD Image Generation (No Watermark, 100% Free) + Claude-level Reasoning")
 
 # Secrets check
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
-HF_TOKEN = st.secrets.get("HF_TOKEN")
-
-if not GROQ_API_KEY or not HF_TOKEN:
-    st.error("GROQ_API_KEY ya HF_TOKEN Streamlit Secrets me missing hai!")
+if not GROQ_API_KEY:
+    st.error("GROQ_API_KEY Streamlit Secrets me missing hai!")
     st.stop()
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# 🌟 DIRECT FLUX.1 ENGINE (NO WATERMARK, HIGH QUALITY)
-def generate_flux_image(prompt):
-    # Black Forest Labs official FLUX.1-schnell via Hugging Face router
-    API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+# 🌟 ZERO-WATERMARK HIGH-RES ENGINE
+def generate_clean_hd_image(prompt):
+    # Professional photorealistic enhancers
+    enhancers = "photorealistic, 8k resolution, raw photo, master studio lighting, sharp focus, highly detailed, high quality, uncompressed"
+    full_prompt = f"{prompt}, {enhancers}"
+    encoded = urllib.parse.quote(full_prompt)
+    seed = random.randint(10000, 999999)
     
-    # Prompt enhancement for photorealism
-    enhanced_prompt = f"{prompt}, 8k, photorealistic, cinematic lighting, sharp focus, masterpiece, highly detailed"
-    payload = {
-        "inputs": enhanced_prompt,
-        "parameters": {"num_inference_steps": 4}
-    }
-    
-    response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
-    
-    if response.status_code == 200:
-        return Image.open(io.BytesIO(response.content))
-    else:
-        # Fallback to SDXL agar router busy ho
-        FALLBACK_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
-        fb_res = requests.post(FALLBACK_URL, headers=headers, json={"inputs": enhanced_prompt}, timeout=60)
-        if fb_res.status_code == 200:
-            return Image.open(io.BytesIO(fb_res.content))
-        raise Exception(f"API Error ({response.status_code}): {response.text}")
+    # Direct pure visual generation (Watermark disabled, turbo crisp render)
+    image_url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&seed={seed}&model=flux&nologo=true&private=true&enhance=false"
+    return image_url
 
-# Chat history setup
+# Chat session memory
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Purane messages render karein
+# Messages render
 for msg in st.session_state.messages:
     if msg["type"] == "text":
         st.chat_message(msg["role"]).write(msg["content"])
@@ -70,18 +54,18 @@ if prompt := st.chat_input("Poocho ya 'create an image of [something]' likho..."
             clean_prompt = clean_prompt.lower().replace(k, "").strip()
 
         with st.chat_message("assistant"):
-            with st.spinner("🎨 FLUX.1 Engine se High-Res Image ban rahi hai (Zero Watermark)..."):
+            with st.spinner("🎨 Clean HD Image render ho rahi hai (Bina Watermark)..."):
                 try:
-                    img = generate_flux_image(clean_prompt)
-                    st.image(img, caption=f"✨ FLUX HD: {clean_prompt}")
+                    img_url = generate_clean_hd_image(clean_prompt)
+                    st.image(img_url, caption=f"✨ HD Render: {clean_prompt}")
                     st.session_state.messages.append({
                         "role": "assistant",
                         "type": "image",
-                        "content": img,
-                        "caption": f"✨ FLUX HD: {clean_prompt}"
+                        "content": img_url,
+                        "caption": f"✨ HD Render: {clean_prompt}"
                     })
                 except Exception as e:
-                    st.error(f"Image generation me error aaya: {e}")
+                    st.error(f"Image error: {e}")
 
     # 2. TEXT / REASONING / CODING
     else:
